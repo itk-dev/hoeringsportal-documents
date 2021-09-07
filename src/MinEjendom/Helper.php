@@ -116,7 +116,7 @@ class Helper extends AbstractArchiveHelper
                             }
 
                             // Skip draft documents.
-                            if (1 === $document->DocumentStatusCode) {
+                            if (1 === (int) $document->DocumentStatusCode) {
                                 $this->info(sprintf('Skipping draft document %s', $document->DocumentNumber));
 
                                 continue;
