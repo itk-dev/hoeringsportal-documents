@@ -69,6 +69,15 @@ class Helper extends AbstractArchiveHelper
 
     public function updateDocuments(Archiver $archiver, array $options = [])
     {
+        $casesToSkip = [];
+        if ($filename = ($options['eDoc-case-skip-list'] ?? null)) {
+            if (!file_exists($filename)) {
+                throw new \RuntimeException(sprintf('File %s does not exist', $filename));
+            }
+
+            $casesToSkip = array_map('trim', file($filename, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES));
+        }
+
         $this->archiver = $archiver;
 
         try {
@@ -92,6 +101,12 @@ class Helper extends AbstractArchiveHelper
 
                     $this->info(sprintf('%s % 8d/%- 8d: %s -> %s', (new \DateTimeImmutable())->format(\DateTimeImmutable::ATOM), $index + 1, \count($sager), $eDocCaseSequenceNumber, $byggesagGuid));
 
+                    if (\in_array($eDocCaseSequenceNumber, $casesToSkip, true)) {
+                        $this->info(sprintf('Skipping %s', $eDocCaseSequenceNumber));
+
+                        continue;
+                    }
+
                     $case = $this->edoc->getCaseBySequenceNumber($eDocCaseSequenceNumber);
                     $documents = $this->edoc->getDocumentList($case);
                     foreach ($documents as $document) {
@@ -101,8 +116,9 @@ class Helper extends AbstractArchiveHelper
                             }
 
                             // Skip draft documents.
-                            if (1 == $document->DocumentStatusCode) {
+                            if (1 === $document->DocumentStatusCode) {
                                 $this->info(sprintf('Skipping draft document %s', $document->DocumentNumber));
+
                                 continue;
                             }
 
