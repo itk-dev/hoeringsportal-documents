@@ -614,7 +614,13 @@ class PdfHelper
         $hearings = $this->getHearings();
 
         $to = new \DateTime();
-        $from = $this->archiver->getLastRunAt() ?? new \DateTime('2001-01-01');
+        $lastRunAt = $this->archiver->getLastRunAt() ?? new \DateTime('2001-01-01');
+        $from = clone $lastRunAt;
+        // Allow changes on hearings after reply deadline.
+        try {
+            $from->modify($this->params->get('hearing_reply_deadline_offset'));
+        } catch (\Throwable $t) {
+        }
 
         // Get hearings finished since last run.
         $hearings = array_filter(
@@ -623,6 +629,22 @@ class PdfHelper
                 $deadline = new \DateTime($hearing['hearing_reply_deadline']);
 
                 return $from <= $deadline && $deadline < $to;
+            }
+        );
+
+        // Keep only hearings with new content in ShareFile.
+        $hearings = array_filter(
+            $hearings,
+            function ($hearing) use ($lastRunAt) {
+                try {
+                    $hearingId = 'H'.$hearing['hearing_id'];
+                    $hearing = $this->shareFileService->findHearing($hearingId);
+                    $lastChangeAt = new \DateTime($hearing['ProgenyEditDate']);
+
+                    return $lastChangeAt >= $lastRunAt;
+                } catch (\Throwable $t) {
+                    return false;
+                }
             }
         );
 
