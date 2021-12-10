@@ -5,6 +5,7 @@
 # https://symfony.com/doc/current/best_practices/configuration.html#application-related-configuration
 parameters:
     env(VIEW_TIMEZONE): 'UTC'
+    env(HEARING_REPLY_DEADLINE_OFFSET): '-30 days'
 
     locale: 'en'
 
@@ -27,6 +28,8 @@ parameters:
     mailer_user: 'info@sharefile2edoc.example.com'
 
     view_timezone: '%env(VIEW_TIMEZONE)%'
+
+    hearing_reply_deadline_offset: '%env(HEARING_REPLY_DEADLINE_OFFSET)%'
 
 services:
     # default configuration for services in *this* file
