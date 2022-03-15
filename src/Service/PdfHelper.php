@@ -89,7 +89,7 @@ class PdfHelper
                     $hearingId = 'H'.$hearing['hearing_id'];
                     $this->run($hearingId, $hearing);
                 } catch (\Throwable $t) {
-                    $this->logException($t);
+                    $this->logException($t, ['hearing' => $hearing]);
                 }
             }
             $this->archiver->setLastRunAt($startTime);
@@ -567,10 +567,10 @@ class PdfHelper
         return $this->twig->render($template, $data);
     }
 
-    private function logException(\Throwable $t)
+    private function logException(\Throwable $t, array $context = [])
     {
         $this->emergency($t->getMessage());
-        $logEntry = new ExceptionLogEntry($t);
+        $logEntry = new ExceptionLogEntry($t, $context);
         $this->entityManager->persist($logEntry);
         $this->entityManager->flush();
 
@@ -582,7 +582,13 @@ class PdfHelper
                     ->setFrom($config['from'])
                     ->setTo($config['to'])
                     ->setBody(
-                        $t->getTraceAsString(),
+                        implode(
+                            PHP_EOL.PHP_EOL,
+                            [
+                                json_encode($context, JSON_PRETTY_PRINT),
+                                $t->getTraceAsString(),
+                            ]
+                        ),
                         'text/plain'
                     );
 

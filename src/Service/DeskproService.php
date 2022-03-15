@@ -22,21 +22,6 @@ class DeskproService
     /** @var array */
     private $config;
 
-    public function __construct(ParameterBagInterface $parameters)
-    {
-        $this->config = [
-            'deskpro_api_code_key' => $parameters->get('deskpro_api_code_key'),
-            'deskpro_url' => $parameters->get('deskpro_url'),
-        ];
-    }
-
-    public function getReplyData($replyId)
-    {
-        $response = $this->client()->get('/ticket_custom_fields/{id}', ['id' => $replyId]);
-
-        return $response->getData();
-    }
-
     private static $customFields = [
         'hearing_id' => '28',
         'hearing_name' => '30',
@@ -57,6 +42,21 @@ class DeskproService
         'udtaler' => '2',
     ];
 
+    public function __construct(ParameterBagInterface $parameters)
+    {
+        $this->config = [
+            'deskpro_api_code_key' => $parameters->get('deskpro_api_code_key'),
+            'deskpro_url' => $parameters->get('deskpro_url'),
+        ];
+    }
+
+    public function getReplyData($replyId)
+    {
+        $response = $this->client()->get('/ticket_custom_fields/{id}', ['id' => $replyId]);
+
+        return $response->getData();
+    }
+
     public function getHearingTickets(int $hearingId): array
     {
         $tickets = [];
@@ -71,7 +71,7 @@ class DeskproService
         ];
         while ($currentPage <= $totalPages) {
             $query['page'] = $currentPage;
-            $endpoint = '/tickets?' . http_build_query($query);
+            $endpoint = '/tickets?'.http_build_query($query);
             $response = $this->client()->get($endpoint);
             $meta = $response->getMeta();
             if ($meta['pagination']['total'] > 999) {
@@ -79,7 +79,7 @@ class DeskproService
             }
 
             $totalPages = $meta['pagination']['total_pages'];
-            $currentPage += 1;
+            ++$currentPage;
 
             $linked = $response->getLinked();
             foreach ($response->getData() as $item) {
