@@ -231,7 +231,7 @@ class HearingOverviewHelper
         $from = clone $lastRunAt;
         // Allow changes on hearings after reply deadline.
         try {
-            $from->modify($this->params->get('hearing_reply_deadline_offset'));
+            $from->modify($this->parameters->get('hearing_reply_deadline_offset'));
         } catch (\Throwable $t) {
         }
 
