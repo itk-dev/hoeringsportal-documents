@@ -597,20 +597,49 @@ class PdfHelper
         }
     }
 
-    private function getHearings()
+    private function getHearings(array $hearingIds = null)
     {
+        $this->logger->info('Getting all hearings');
         $config = $this->archiver->getConfigurationValue('hearings');
         if (!isset($config['api_url'])) {
             throw new RuntimeException('Missing hearings api url');
         }
 
-        $client = new Client();
-        $response = $client->get($config['api_url']);
-        $data = json_decode((string) $response->getBody(), true);
+        $hearings = [];
 
-        $hearings = array_map(function ($feature) {
-            return $feature['properties'];
-        }, $data['features']);
+        $client = new Client();
+
+        $url = $config['api_url'];
+        while (null !== $url) {
+            $this->logger->debug(sprintf('api url: %s', $url));
+            $response = $client->get($url);
+            $data = json_decode((string) $response->getBody(), true);
+
+            $hearings[] = array_map(function ($feature) {
+                return $feature['properties'];
+            }, $data['features']);
+
+            // Parse link header (cf. https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Link).
+            $next = null;
+            $link = $response->getHeader('link');
+            $rels = reset($link);
+            if ($rels && preg_match_all('/<(?P<url>[^>]+)>; rel="(?P<rel>[^"]+)"/', $rels, $matches, PREG_SET_ORDER)) {
+                $next = array_values(array_filter($matches, static function ($match) {
+                    return 'next' === $match['rel'];
+                }))[0] ?? null;
+            }
+
+            $url = $next['url'] ?? null;
+        }
+
+        // Flatten.
+        $hearings = array_merge(...$hearings);
+
+        if (!empty($hearingIds)) {
+            $hearings = array_filter($hearings, static function ($properties) use ($hearingIds) {
+                return \in_array($properties['hearing_id'], $hearingIds, true);
+            });
+        }
 
         return $hearings;
     }
