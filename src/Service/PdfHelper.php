@@ -21,6 +21,7 @@ use Psr\Log\LoggerAwareTrait;
 use Psr\Log\LoggerTrait;
 use Psr\Log\LogLevel;
 use Psr\Log\NullLogger;
+use setasign\Fpdi\PdfParser\StreamReader;
 use Symfony\Component\DependencyInjection\ParameterBag\ParameterBagInterface;
 use Symfony\Component\Filesystem\Exception\IOExceptionInterface;
 use Symfony\Component\Filesystem\Filesystem;
@@ -428,7 +429,8 @@ class PdfHelper
                     continue;
                 }
 
-                $pagecount = $mpdf->setSourceFile($filename);
+                $reader = StreamReader::createByFile($filename);
+                $pagecount = $mpdf->setSourceFile($reader);
                 $this->debug(sprintf('% 4d/%d Adding file %s', $index, $total, $filename));
 
                 for ($p = 1; $p <= $pagecount; ++$p) {
