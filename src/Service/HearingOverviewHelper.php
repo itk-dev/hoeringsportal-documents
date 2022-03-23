@@ -14,8 +14,12 @@ use App\Entity\Archiver;
 use App\Entity\ExceptionLogEntry;
 use Doctrine\ORM\EntityManagerInterface;
 use GuzzleHttp\Client;
+use PhpOffice\PhpSpreadsheet\Cell\Coordinate;
 use PhpOffice\PhpSpreadsheet\Shared\Date;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
+use PhpOffice\PhpSpreadsheet\Style\Color;
+use PhpOffice\PhpSpreadsheet\Style\Conditional;
+use PhpOffice\PhpSpreadsheet\Style\Fill;
 use PhpOffice\PhpSpreadsheet\Style\NumberFormat;
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 use Psr\Log\LoggerAwareTrait;
@@ -137,6 +141,14 @@ class HearingOverviewHelper
             ++$row;
         };
         $addRow($headers);
+
+        // Resize columns to fit header content.
+        $numberOfColumns = Coordinate::columnIndexFromString($sheet->getHighestDataColumn());
+        for ($col = 1; $col <= $numberOfColumns; ++$col) {
+            $sheet->getColumnDimensionByColumn($col)->setAutoSize(true);
+        }
+        $sheet->calculateColumnWidths();
+
         foreach ($tickets as $ticket) {
             $addRow([
                 [
@@ -154,8 +166,52 @@ class HearingOverviewHelper
             ]);
         }
 
+        // Freeze first row.
+        $sheet->freezePane('A2');
+
+        // Add auto filter on all columns.
+        $dimensions = 'A1'.':'.$sheet->getHighestDataColumn().$sheet->getHighestDataRow();
+        $sheet->setAutoFilter($dimensions);
+        $sheet->getAutoFilter()->showHideRows();
+
+        // Resize some columns to fit content.
+        $autosizeColumns = [
+            1, // date_created
+            2, // hearing_id
+            3, // ref
+            5, // person display_name
+            6, // udtaler sig som
+            7, // organization
+        ];
+        for ($col = 1; $col <= $numberOfColumns; ++$col) {
+            $sheet->getColumnDimensionByColumn($col)->setAutoSize(\in_array($col, $autosizeColumns, true));
+        }
+        $sheet->calculateColumnWidths();
+
+        // Header styling.
+        $headerBackgroundColor = '4472C4';
+        $headerColor = Color::COLOR_WHITE;
+        $sheet->getStyle('A1:'.$sheet->getHighestDataColumn().'1')
+            ->getFill()->setFillType(Fill::FILL_SOLID)
+            ->getStartColor()->setARØGB($headerBackgroundColor);
+        $sheet->getStyle('A1:'.$sheet->getHighestDataColumn().'1')
+            ->getFont()->getColor()->setARGB($headerColor);
+
+        // Zebra striping.
+        $color = 'D9E1F2';
+        $range = 'A2:'.$sheet->getHighestDataColumn().$sheet->getHighestDataRow();
+        $conditional1 = new Conditional();
+        $conditional1->setConditionType(Conditional::CONDITION_EXPRESSION)
+            ->setOperatorType(Conditional::OPERATOR_EQUAL)
+            ->addCondition('MOD(ROW(),2)=0');
+        $conditional1->getStyle()->getFill()->setFillType(Fill::FILL_SOLID)
+            ->getStartColor()->setARGB($color);
+        $conditional1->getStyle()->getFill()->setFillType(Fill::FILL_SOLID)
+            ->getEndColor()->setARGB($color);
+        $sheet->getStyle($range)->setConditionalStyles([$conditional1]);
+
         $filename = sprintf(
-            '%s/var/xlsx/H%d-overview-test.xlsx',
+            '%s/var/xlsx/overview.xlsx',
             $this->parameters->get('kernel.project_dir'),
             $hearingId
         );
