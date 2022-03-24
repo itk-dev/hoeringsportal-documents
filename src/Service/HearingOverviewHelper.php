@@ -211,7 +211,7 @@ class HearingOverviewHelper
         $sheet->getStyle($range)->setConditionalStyles([$conditional1]);
 
         $filename = sprintf(
-            '%s/var/xlsx/overview.xlsx',
+            '%s/var/xlsx/overblik.xlsx',
             $this->parameters->get('kernel.project_dir'),
             $hearingId
         );
