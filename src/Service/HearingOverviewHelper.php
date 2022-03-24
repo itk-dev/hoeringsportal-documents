@@ -193,7 +193,7 @@ class HearingOverviewHelper
         $headerColor = Color::COLOR_WHITE;
         $sheet->getStyle('A1:'.$sheet->getHighestDataColumn().'1')
             ->getFill()->setFillType(Fill::FILL_SOLID)
-            ->getStartColor()->setARØGB($headerBackgroundColor);
+            ->getStartColor()->setARGB($headerBackgroundColor);
         $sheet->getStyle('A1:'.$sheet->getHighestDataColumn().'1')
             ->getFont()->getColor()->setARGB($headerColor);
 
