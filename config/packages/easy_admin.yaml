@@ -63,6 +63,7 @@ easy_admin:
                               !php/const App\Entity\Archiver::TYPE_ERPO2SHAREFILE2EDOC: !php/const App\Entity\Archiver::TYPE_ERPO2SHAREFILE2EDOC
                               pdfcombine: !php/const App\Entity\Archiver::TYPE_PDF_COMBINE
                               !php/const App\Entity\Archiver::TYPE_MIN_EJENDOM: !php/const App\Entity\Archiver::TYPE_MIN_EJENDOM
+                              !php/const App\Entity\Archiver::TYPE_HEARING_OVERVIEW: !php/const App\Entity\Archiver::TYPE_HEARING_OVERVIEW
 
                     - property: enabled
                     - property: configuration

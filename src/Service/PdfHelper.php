@@ -21,6 +21,7 @@ use Psr\Log\LoggerAwareTrait;
 use Psr\Log\LoggerTrait;
 use Psr\Log\LogLevel;
 use Psr\Log\NullLogger;
+use setasign\Fpdi\PdfParser\StreamReader;
 use Symfony\Component\DependencyInjection\ParameterBag\ParameterBagInterface;
 use Symfony\Component\Filesystem\Exception\IOExceptionInterface;
 use Symfony\Component\Filesystem\Filesystem;
@@ -89,7 +90,7 @@ class PdfHelper
                     $hearingId = 'H'.$hearing['hearing_id'];
                     $this->run($hearingId, $hearing);
                 } catch (\Throwable $t) {
-                    $this->logException($t);
+                    $this->logException($t, ['hearing' => $hearing]);
                 }
             }
             $this->archiver->setLastRunAt($startTime);
@@ -428,7 +429,8 @@ class PdfHelper
                     continue;
                 }
 
-                $pagecount = $mpdf->setSourceFile($filename);
+                $reader = StreamReader::createByFile($filename);
+                $pagecount = $mpdf->setSourceFile($reader);
                 $this->debug(sprintf('% 4d/%d Adding file %s', $index, $total, $filename));
 
                 for ($p = 1; $p <= $pagecount; ++$p) {
@@ -567,10 +569,10 @@ class PdfHelper
         return $this->twig->render($template, $data);
     }
 
-    private function logException(\Throwable $t)
+    private function logException(\Throwable $t, array $context = [])
     {
         $this->emergency($t->getMessage());
-        $logEntry = new ExceptionLogEntry($t);
+        $logEntry = new ExceptionLogEntry($t, $context);
         $this->entityManager->persist($logEntry);
         $this->entityManager->flush();
 
@@ -582,7 +584,13 @@ class PdfHelper
                     ->setFrom($config['from'])
                     ->setTo($config['to'])
                     ->setBody(
-                        $t->getTraceAsString(),
+                        implode(
+                            PHP_EOL.PHP_EOL,
+                            [
+                                json_encode($context, JSON_PRETTY_PRINT),
+                                $t->getTraceAsString(),
+                            ]
+                        ),
                         'text/plain'
                     );
 
@@ -591,20 +599,49 @@ class PdfHelper
         }
     }
 
-    private function getHearings()
+    private function getHearings(array $hearingIds = null)
     {
+        $this->logger->info('Getting all hearings');
         $config = $this->archiver->getConfigurationValue('hearings');
         if (!isset($config['api_url'])) {
             throw new RuntimeException('Missing hearings api url');
         }
 
-        $client = new Client();
-        $response = $client->get($config['api_url']);
-        $data = json_decode((string) $response->getBody(), true);
+        $hearings = [];
 
-        $hearings = array_map(function ($feature) {
-            return $feature['properties'];
-        }, $data['features']);
+        $client = new Client();
+
+        $url = $config['api_url'];
+        while (null !== $url) {
+            $this->logger->debug(sprintf('api url: %s', $url));
+            $response = $client->get($url);
+            $data = json_decode((string) $response->getBody(), true);
+
+            $hearings[] = array_map(function ($feature) {
+                return $feature['properties'];
+            }, $data['features']);
+
+            // Parse link header (cf. https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Link).
+            $next = null;
+            $link = $response->getHeader('link');
+            $rels = reset($link);
+            if ($rels && preg_match_all('/<(?P<url>[^>]+)>; rel="(?P<rel>[^"]+)"/', $rels, $matches, PREG_SET_ORDER)) {
+                $next = array_values(array_filter($matches, static function ($match) {
+                    return 'next' === $match['rel'];
+                }))[0] ?? null;
+            }
+
+            $url = $next['url'] ?? null;
+        }
+
+        // Flatten.
+        $hearings = array_merge(...$hearings);
+
+        if (!empty($hearingIds)) {
+            $hearings = array_filter($hearings, static function ($properties) use ($hearingIds) {
+                return \in_array($properties['hearing_id'], $hearingIds, true);
+            });
+        }
 
         return $hearings;
     }

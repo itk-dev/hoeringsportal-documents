@@ -106,3 +106,9 @@ services:
             - method: setArchiverRepository
               arguments:
                   - '@App\Repository\ArchiverRepository'
+
+    App\Command\HearingOverviewCommand:
+        calls:
+            - method: setArchiverRepository
+              arguments:
+                  - '@App\Repository\ArchiverRepository'
