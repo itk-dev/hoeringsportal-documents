@@ -197,7 +197,8 @@ class PdfHelper
 
         $result = $this->shareFileService->uploadFile($filename, $parentId);
 
-        if ('OK' !== $result) {
+        // @see https://api.sharefile.com/docs/resource?name=Items#Upload_File
+        if (0 !== strpos($result, 'OK')) {
             throw new \RuntimeException('Error uploading file: '.$filename);
         }
 
